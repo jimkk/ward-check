@@ -1,5 +1,4 @@
-import numpy as np
-
+from statistics import mean
 class Users:
     users = [{'id': '161603549917216768', 'name': 'TyrannicalTRex', 'stats': []}] # for testing
     
@@ -31,10 +30,10 @@ class Users:
     def get_stats(self, id):
         user = self.in_users(id)
         if user is not None:
-            control_wards = np.average([x['controlWards'] for x in user['stats']])
-            normal_wards = np.average([x['normalWards'] for x in user['stats']])
-            control_wards_per_minute = np.average([x['controlWardsPerMinute'] for x in user['stats']])
-            normal_wards_per_minute = np.average([x['normalWardsPerMinute'] for x in user['stats']])
+            control_wards = mean([x['controlWards'] for x in user['stats']])
+            normal_wards = mean([x['normalWards'] for x in user['stats']])
+            control_wards_per_minute = mean([x['controlWardsPerMinute'] for x in user['stats']])
+            normal_wards_per_minute = mean([x['normalWardsPerMinute'] for x in user['stats']])
             return {
                 'controlWards': control_wards,
                 'normalWards': normal_wards,
