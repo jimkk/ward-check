@@ -2,6 +2,7 @@ import discord
 import requests
 from ward_db import ward_db
 import ward_stats
+import os
 
 from users import Users
 
@@ -9,12 +10,19 @@ with open('api.key', 'r') as api_file:
     api_key = api_file.readline()
 
 client = discord.Client()
-users = []
 
 # api_url = 'http://localhost:5000'
 api_url = 'http://10.0.0.137:12345'
-# users = Users()
+
+env_url_name = 'WARD_CHECK_API_URL'
+env_url = os.environ.get('WARD_CHECK_API_URL')
+if env_url is not None:
+    api_url = env_url
+else:
+    print(f'{env_url_name} was not found in the env variables. Defaulting to dev url')
+
 db = ward_db()
+print(api_url)
 
 @client.event
 async def on_message(message):
