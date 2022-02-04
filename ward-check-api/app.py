@@ -3,10 +3,16 @@ import requests
 from match_db import match_db
 app = Flask(__name__)
 
-region_v4 = "na1"
-region_v5 = "americas"
-base_api_v4 = "https://" + region_v4 + ".api.riotgames.com"
-base_api_v5 = "https://" + region_v5 + ".api.riotgames.com"
+
+regions = {
+    4: "na1",
+    5: "americas"
+}
+
+base_apis = {
+    4:"https://" + regions[4] + ".api.riotgames.com",
+    5:"https://" + regions[5] + ".api.riotgames.com"
+}
 
 api_key = ""
 with open('api.key', 'r') as api_key_file:
@@ -24,20 +30,14 @@ def root():
 def getgames(summoner_name):
     puuid = get_puuid(summoner_name)
     if puuid is None:
-        return "Failed to get puuid"
-    r = requests.get(base_api_v5 + '/lol/match/v5/matches/by-puuid/{}/ids'.format(puuid), headers={'X-Riot-Token': api_key})
-    if not r.ok:
-        return "Failed to get matches"
+        return f"Failed to get puuid for summoner name: {summoner_name}"
+    match_list = get_riot_request('/lol/match/v5/matches/by-puuid/{}/ids'.format(puuid), version=5)
     games_ward_data = []
-    match_list = r.json()
     for match_id in match_list:
         game_data = db.get_game(match_id)
         if game_data is None:
             print('Getting game from Riot API')
-            match_response = requests.get(base_api_v5 + '/lol/match/v5/matches/{match_id}'.format(match_id = match_id), headers={'X-Riot-Token': api_key})
-            if not match_response.ok:
-                return "Failed to get match info. Match Id = {}".format(match_id)
-            game_data = match_response.json()
+            game_data = get_riot_request('/lol/match/v5/matches/{match_id}'.format(match_id = match_id), version=5)
             db.add_game(game_data)
         if game_data['info']['gameMode'] == 'CLASSIC':
             participants = game_data['info']['participants']
@@ -59,8 +59,17 @@ def set_api_key(new_api_key):
 
 # ---------------- Utility ---------------- #
 def get_puuid(summoner_name):
-    r = requests.get(base_api_v4 + "/lol/summoner/v4/summoners/by-name/" + summoner_name, headers={'X-Riot-Token': api_key})
-    if not r.ok:
-        return None
-    data = r.json()
-    return data['puuid']
+    data = get_riot_request(f'/lol/summoner/v4/summoners/by-name/{summoner_name}', version=4)
+    if data is not None:
+        return data['puuid']
+
+def get_riot_request(endpoint, version = 4):
+    url = base_apis[version] + endpoint
+    r = requests.get(url, headers={'X-Riot-Token': api_key})
+    if r.ok:
+        return r.json()
+    if r.status_code == 403:
+        print('Invalid API Key')
+    elif r.status_code == 404:
+        print('Not Found')
+    return None
