@@ -1,8 +1,10 @@
+from email.errors import MessageError
 import discord
 import requests
 from ward_db import ward_db
 import ward_stats
 import os
+import ward_api
 
 from users import Users
 
@@ -11,18 +13,10 @@ with open('api.key', 'r') as api_file:
 
 client = discord.Client()
 
-# api_url = 'http://localhost:5000'
-api_url = 'http://10.0.0.137:12345'
 
-env_url_name = 'WARD_CHECK_API_URL'
-env_url = os.environ.get('WARD_CHECK_API_URL')
-if env_url is not None:
-    api_url = env_url
-else:
-    print(f'{env_url_name} was not found in the env variables. Defaulting to dev url')
 
 db = ward_db()
-print(api_url)
+# print(api_url)
 
 @client.event
 async def on_message(message):
@@ -33,10 +27,12 @@ async def on_message(message):
         case 'check':
             user = db.get_user_info(str(message.author.id))
             if user is not None:
-                r = requests.get(api_url + '/getgames/' + user['league_name'])
-                if not r.ok:
-                    return
-                data = r.json()
+                print("Getting data for: " + user['league_name'])
+                # r = requests.get(api_url + '/getgames/' + user['league_name'])
+                # if not r.ok:
+                #     return
+                # data = r.json()
+                data = ward_api.get_games(user)
                 last_game = data['data'][0]
                 await message.channel.send(f'Vision Wards: {last_game["controlWards"]}\nNormal Wards: {last_game["normalWards"]}')
                 for game in data['data']:
@@ -44,12 +40,19 @@ async def on_message(message):
             else:
                 await message.channel.send("I don't know you. (try 'adduser' first.)", reference=message, delete_after=20)
         case 'adduser':
-            db.add_user(message.author.id, message.content[message.content.find(' ')+1:])
-            print(users)
+            user_id = message.author.id
+            league_name = message.content[message.content.find(' ')+1:]
+            user_puuid = ward_api.get_id(league_name)
+            db.add_user(user_id, league_name, user_puuid)
         case 'stats':
-            data = ward_stats.get_stats(db.get_user_info(message.author.id))
-            await message.channel.send(f'Your Averages:\nControl Wards: { data["controlWards"] }\nNormal Wards: { data["normalWards"] }\
-                    \nControl Wards Per Minute: { round(data["controlWardsPerMinute"], 3) }\nNormal Wards Per Minute:{ round(data["normalWardsPerMinute"], 3) }')
+            async with message.channel.typing():
+                data = db.get_stats(message.author.id)
+                await message.channel.send(f'Your Averages:\nControl Wards: { round(data["controlWards"],3) }\nNormal Wards: { round(data["normalWards"],3) }\
+                        \nControl Wards Per Minute: { round(data["controlWardsPerMinute"], 3) }\nNormal Wards Per Minute:{ round(data["normalWardsPerMinute"], 3) }')
+
+        case 'test':
+            print(db.get_user_games(message.author.id))
+
         case 'clearusers':
             db.clear_users()
             await message.channel.send('Users Cleared.')

@@ -26,36 +26,40 @@ def root():
     return "Current supported routes:\n \
             getlastgame/<Summoner Name (case sensitive)>"
 
-@app.route('/getgames/<summoner_name>')
-def getgames(summoner_name):
+@app.route('/getgames/<summoner_name>/<option>')
+def getgames(summoner_name, option):
     puuid = get_puuid(summoner_name)
     if puuid is None:
         return f"Failed to get puuid for summoner name: {summoner_name}"
     match_list = get_riot_request('/lol/match/v5/matches/by-puuid/{}/ids'.format(puuid), version=5)
-    games_ward_data = []
+    return_data = []
     for match_id in match_list:
         game_data = db.get_game(match_id)
         if game_data is None:
             print('Getting game from Riot API')
             game_data = get_riot_request('/lol/match/v5/matches/{match_id}'.format(match_id = match_id), version=5)
             db.add_game(game_data)
-        if game_data['info']['gameMode'] == 'CLASSIC':
-            participants = game_data['info']['participants']
-            summoner_info = [x for x in participants if x['puuid'] == puuid][0]
-            control_wards = summoner_info['detectorWardsPlaced']
-            normal_wards = summoner_info['wardsPlaced'] - control_wards
-            games_ward_data.append({
-                'match_id': match_id,
-                'duration': game_data['info']['gameDuration'],
-                'normalWards': normal_wards,
-                'controlWards': control_wards
-            })
-    return {'data': games_ward_data}
+        if option == 'wards':
+            if game_data['info']['gameMode'] == 'CLASSIC':
+                participants = game_data['info']['participants']
+                summoner_info = [x for x in participants if x['puuid'] == puuid][0]
+                control_wards = summoner_info['detectorWardsPlaced']
+                normal_wards = summoner_info['wardsPlaced'] - control_wards
+                return_data.append({
+                    'match_id': match_id,
+                    'duration': game_data['info']['gameDuration'],
+                    'normalWards': normal_wards,
+                    'controlWards': control_wards
+                })
+        else:
+            return_data.append(game_data)
+    return {'data': return_data}
     
-@app.route('/setapikey/<new_api_key>')
-def set_api_key(new_api_key):
-    api_key = new_api_key
-    return 'Success'
+@app.route('/id/<summoner_name>')
+def get_id(summoner_name):
+    return {
+        'puuid': get_puuid(summoner_name)
+    }
 
 # ---------------- Utility ---------------- #
 def get_puuid(summoner_name):
