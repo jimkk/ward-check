@@ -8,8 +8,13 @@ import ward_api
 
 from users import Users
 
-with open('api.key', 'r') as api_file:
-    api_key = api_file.readline()
+# with open('api.key', 'r') as api_file:
+#     api_key = api_file.readline()
+
+api_key = os.environ.get('DISCORD_KEY')
+if api_key is None:
+    print('Failed to get $DISCORD_KEY. Make sure env var exists')
+    exit(1)
 
 client = discord.Client()
 
@@ -32,11 +37,13 @@ async def on_message(message):
                 # if not r.ok:
                 #     return
                 # data = r.json()
-                data = ward_api.get_games(user)
-                last_game = data['data'][0]
-                await message.channel.send(f'Vision Wards: {last_game["controlWards"]}\nNormal Wards: {last_game["normalWards"]}')
-                for game in data['data']:
-                    db.add_stats(message.author.id, game)
+                async with message.channel.typing():
+                    data = ward_api.get_games(user)
+                    last_game = data['data'][0]
+                    # await message.channel.send(f'Vision Wards: {last_game["controlWards"]}\nNormal Wards: {last_game["normalWards"]}')
+                    await print_stats(message)
+                # for game in data['data']:
+                #     db.add_stats(message.author.id, game)
             else:
                 await message.channel.send("I don't know you. (try 'adduser' first.)", reference=message, delete_after=20)
         case 'adduser':
@@ -46,9 +53,7 @@ async def on_message(message):
             db.add_user(user_id, league_name, user_puuid)
         case 'stats':
             async with message.channel.typing():
-                data = db.get_stats(message.author.id)
-                await message.channel.send(f'Your Averages:\nControl Wards: { round(data["controlWards"],3) }\nNormal Wards: { round(data["normalWards"],3) }\
-                        \nControl Wards Per Minute: { round(data["controlWardsPerMinute"], 3) }\nNormal Wards Per Minute:{ round(data["normalWardsPerMinute"], 3) }')
+                await print_stats(message)
 
         case 'test':
             print(db.get_user_games(message.author.id))
@@ -59,6 +64,12 @@ async def on_message(message):
 
 
     print(command)
+
+
+async def print_stats(message):
+    data = db.get_stats(message.author.id)
+    await message.channel.send(f'Your Averages:\nControl Wards: { round(data["controlWards"],3) }\nNormal Wards: { round(data["normalWards"],3) }\
+            \nControl Wards Per Minute: { round(data["controlWardsPerMinute"], 3) }\nNormal Wards Per Minute:{ round(data["normalWardsPerMinute"], 3) }')
 
 
 @client.event

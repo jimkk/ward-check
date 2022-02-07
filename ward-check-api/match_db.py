@@ -1,3 +1,4 @@
+import os
 import firebase_admin
 from firebase_admin import credentials, db
 
@@ -6,7 +7,11 @@ class match_db:
     db_ref = None
 
     def __init__(self) -> None:
-        cred = credentials.Certificate("firebase.key")
+        cred_location = os.environ.get('FIREBASE_CRED')
+        if cred_location is None:
+            raise Exception('Missing $FIREBASE_CRED value.')
+
+        cred = credentials.Certificate(cred_location)
         firebase_admin.initialize_app(cred,{
             'databaseURL': 'https://matchhistory-b7495.firebaseio.com/'
         })

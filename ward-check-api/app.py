@@ -1,6 +1,7 @@
 from flask import Flask
 import requests
 from match_db import match_db
+import os
 app = Flask(__name__)
 
 
@@ -14,9 +15,10 @@ base_apis = {
     5:"https://" + regions[5] + ".api.riotgames.com"
 }
 
-api_key = ""
-with open('api.key', 'r') as api_key_file:
-    api_key = api_key_file.readline()
+api_key = os.environ.get('RIOT_API_KEY')
+if api_key is None:
+    print('Failed to get $RIOT_API_KEY. Make sure env var exists')
+    exit(1)
 
 db = match_db()
 
@@ -25,6 +27,10 @@ db = match_db()
 def root():
     return "Current supported routes:\n \
             getlastgame/<Summoner Name (case sensitive)>"
+
+@app.route('/getgames/<summoner_name>')
+def getgames_base(summoner_name):
+    return getgames(summoner_name, 'all')
 
 @app.route('/getgames/<summoner_name>/<option>')
 def getgames(summoner_name, option):
